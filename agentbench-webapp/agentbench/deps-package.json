@@ -1,0 +1,14 @@
+{
+  "name": "agentbench-deps",
+  "version": "1.0.0",
+  "description": "Dependencies for AgentBench",
+  "main": "index.js",
+  "scripts": {
+    "install-deps": "npm install zustand recharts @supabase/supabase-js"
+  },
+  "dependencies": {
+    "zustand": "^4.4.7",
+    "recharts": "^2.8.0",
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}

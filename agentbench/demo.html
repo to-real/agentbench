@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentBench - AI Agent评测平台演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 256px;
+            background: #111827;
+            color: white;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .sidebar h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .sidebar p {
+            color: #9ca3af;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        
+        .nav-item {
+            display: block;
+            padding: 12px 24px;
+            color: #d1d5db;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            background: #374151;
+            color: white;
+        }
+        
+        .nav-item.active {
+            background: #374151;
+            color: white;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .page-header {
+            margin-bottom: 32px;
+        }
+        
+        .page-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+        
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 18px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #111827;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .feature-card h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #111827;
+        }
+        
+        .feature-card p {
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-complete {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .button {
+            background: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .button:hover {
+            background: #2563eb;
+        }
+        
+        .button-secondary {
+            background: #6b7280;
+        }
+        
+        .button-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .demo-section {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        
+        .demo-section h3 {
+            color: #0369a1;
+            margin-bottom: 16px;
+        }
+        
+        .radar-chart {
+            width: 400px;
+            height: 400px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 24px auto;
+            background: #f9fafb;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <h1>AgentBench</h1>
+            <p>AI Agent评测与基准测试平台</p>
+            
+            <nav>
+                <a href="#" class="nav-item active" onclick="showPage('home')">🏠 首页</a>
+                <a href="#" class="nav-item" onclick="showPage('projects')">📋 项目管理</a>
+                <a href="#" class="nav-item" onclick="showPage('testcases')">🧪 测试用例库</a>
+                <a href="#" class="nav-item" onclick="showPage('evaluate')">⚡ 评测执行</a>
+                <a href="#" class="nav-item" onclick="showPage('analysis')">📊 数据分析</a>
+            </nav>
+        </div>
+        
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 首页 -->
+            <div id="home" class="page active">
+                <div class="page-header">
+                    <h1 class="page-title">欢迎使用 AgentBench</h1>
+                    <p class="page-subtitle">AI Agent评测与基准测试平台演示</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h3>🎯 演示说明</h3>
+                    <p>这是AgentBench平台的静态演示版本，展示了完整的UI设计和功能规划。实际开发版本包含完整的数据库集成、动态表单和实时数据分析功能。</p>
+                </div>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📋 项目管理</h4>
+                        <p>创建和管理评测项目，定义需要评测的AI Agent（如MGX、Replit等）。</p>
+                        <span class="status-badge status-complete">Phase 1 完成</span>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🧪 测试用例库</h4>
+                        <p>维护标准化的测试用例库，确保评测的一致性和可重复性。</p>
+                        <span class="status-badge status-complete">Phase 1 完成</span>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>⚡ 评测执行</h4>
+                        <p>执行评测任务，记录AI Agent在五大能力维度的详细表现。</p>
+                        <span class="status-badge status-pending">Phase 2 开发中</span>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📊 数据分析</h4>
+                        <p>可视化分析评测结果，通过雷达图等方式对比不同Agent的表现。</p>
+                        <span class="status-badge status-pending">Phase 2 开发中</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>技术栈</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <span class="status-badge status-complete">Next.js 15</span>
+                        <span class="status-badge status-complete">TypeScript</span>
+                        <span class="status-badge status-complete">Tailwind CSS</span>
+                        <span class="status-badge status-complete">Supabase</span>
+                        <span class="status-badge status-complete">Zustand</span>
+                        <span class="status-badge status-complete">Recharts</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 项目管理页面 -->
+            <div id="projects" class="page">
+                <div class="page-header">
+                    <h1 class="page-title">项目管理</h1>
+                    <p class="page-subtitle">创建和管理评测项目</p>
+                </div>
+                
+                <div class="card">
+                    <h3>项目列表</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>项目名称</th>
+                                <th>评测目标</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>前端框架评测</td>
+                                <td>MGX, Replit, CodeLlama</td>
+                                <td>2025-01-07</td>
+                                <td>
+                                    <a href="#" class="button">编辑</a>
+                                    <a href="#" class="button button-secondary" style="margin-left: 8px;">删除</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>算法实现能力</td>
+                                <td>GPT-4, Claude, Gemini</td>
+                                <td>2025-01-06</td>
+                                <td>
+                                    <a href="#" class="button">编辑</a>
+                                    <a href="#" class="button button-secondary" style="margin-left: 8px;">删除</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 24px;">
+                        <a href="#" class="button">+ 创建新项目</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 测试用例库页面 -->
+            <div id="testcases" class="page">
+                <div class="page-header">
+                    <h1 class="page-title">测试用例库</h1>
+                    <p class="page-subtitle">管理标准化测试用例</p>
+                </div>
+                
+                <div class="card">
+                    <h3>测试用例列表</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>用例标题</th>
+                                <th>标签</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>React组件开发</td>
+                                <td>前端, 中等复杂度</td>
+                                <td>2025-01-07</td>
+                                <td>
+                                    <a href="#" class="button">编辑</a>
+                                    <a href="#" class="button button-secondary" style="margin-left: 8px;">删除</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>排序算法实现</td>
+                                <td>算法, 基础</td>
+                                <td>2025-01-06</td>
+                                <td>
+                                    <a href="#" class="button">编辑</a>
+                                    <a href="#" class="button button-secondary" style="margin-left: 8px;">删除</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 24px;">
+                        <a href="#" class="button">+ 创建新用例</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 评测执行页面 -->
+            <div id="evaluate" class="page">
+                <div class="page-header">
+                    <h1 class="page-title">评测执行</h1>
+                    <p class="page-subtitle">执行AI Agent评测任务</p>
+                </div>
+                
+                <div class="card">
+                    <h3>选择评测配置</h3>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">评测项目</label>
+                        <select style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                            <option>前端框架评测</option>
+                            <option>算法实现能力</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">测试用例</label>
+                        <select style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                            <option>React组件开发</option>
+                            <option>排序算法实现</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Agent评测标签</h3>
+                    <div style="display: flex; gap: 8px; margin-bottom: 24px;">
+                        <button style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">MGX</button>
+                        <button style="padding: 8px 16px; background: #e5e7eb; color: #374151; border: none; border-radius: 4px; cursor: pointer;">Replit</button>
+                        <button style="padding: 8px 16px; background: #e5e7eb; color: #374151; border: none; border-radius: 4px; cursor: pointer;">CodeLlama</button>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 16px; border-radius: 4px; text-align: center; color: #6b7280;">
+                        评分表单将在Phase 2中实现
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 数据分析页面 -->
+            <div id="analysis" class="page">
+                <div class="page-header">
+                    <h1 class="page-title">数据分析</h1>
+                    <p class="page-subtitle">评测结果可视化分析</p>
+                </div>
+                
+                <div class="card">
+                    <h3>选择对比项目</h3>
+                    <select style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-bottom: 24px;">
+                        <option>前端框架评测</option>
+                        <option>算法实现能力</option>
+                    </select>
+                </div>
+                
+                <div class="card">
+                    <h3>能力维度雷达图</h3>
+                    <div class="radar-chart">
+                        <div style="text-align: center; color: #6b7280;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                            <p>雷达图将在Phase 2中实现</p>
+                            <p style="font-size: 14px; margin-top: 8px;">使用Recharts绘制五大能力维度对比</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>详细对比数据</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th>核心交付能力</th>
+                                <th>认知规划能力</th>
+                                <th>交互沟通能力</th>
+                                <th>效率资源利用</th>
+                                <th>工程化可扩展性</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>MGX</td>
+                                <td>4.2</td>
+                                <td>4.5</td>
+                                <td>4.0</td>
+                                <td>4.1</td>
+                                <td>4.3</td>
+                            </tr>
+                            <tr>
+                                <td>Replit</td>
+                                <td>4.0</td>
+                                <td>3.8</td>
+                                <td>4.2</td>
+                                <td>4.5</td>
+                                <td>3.9</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showPage(pageId) {
+            // 隐藏所有页面
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+            
+            // 显示选中的页面
+            document.getElementById(pageId).classList.add('active');
+            
+            // 更新导航状态
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        
+        // 阻止链接默认行为
+        document.querySelectorAll('a[href="#"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+            });
+        });
+    </script>
+</body>
+</html>

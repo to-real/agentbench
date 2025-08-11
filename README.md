@@ -222,7 +222,7 @@ npm run package
 
 - 项目主页: [https://github.com/your-username/agentbench](https://github.com/your-username/agentbench)
 - 问题反馈: [Issues](https://github.com/your-username/agentbench/issues)
-- 邮箱: [your-email@example.com](mailto:your-email@example.com)
+- 邮箱: [zjyyyds121@gmail.com](mailto:zjyyyds121@gmail.com)
 
 ---
 

@@ -1,0 +1,47 @@
+{
+  "name": "agentbench-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for AgentBench automated evaluation system",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "npm run test:performance && npm run test:connection && npm run test:reliability",
+    "test:performance": "ts-node test/performance-test.ts",
+    "test:connection": "ts-node test/connection-test.ts",
+    "test:reliability": "ts-node test/reliability-test.ts",
+    "test:suite": "ts-node test/test-suite.ts",
+    "test:unit": "jest",
+    "lint": "eslint src/**/*.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "websocket",
+    "agentbench",
+    "ai-evaluation",
+    "realtime",
+    "typescript"
+  ],
+  "author": "AgentBench Team",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2",
+    "jsonwebtoken": "^9.0.2",
+    "@types/ws": "^8.5.8",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.2",
+    "ts-node": "^10.9.1",
+    "@types/jest": "^29.5.8",
+    "jest": "^29.7.0",
+    "eslint": "^8.54.0",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

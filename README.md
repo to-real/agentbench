@@ -59,21 +59,40 @@ AgentBench是一个完整的评测解决方案，包含：
 
 ```
 agentbench/
-├── agentbench/                    # Next.js Web应用
+├── agentbench-webapp/              # Next.js Web应用
 │   ├── src/
 │   │   ├── app/                  # App Router页面
+│   │   │   ├── projects/        # 项目管理页面
+│   │   │   ├── test-cases/      # 测试用例页面
+│   │   │   ├── evaluate/        # 评测执行页面
+│   │   │   └── analysis/        # 数据分析页面
 │   │   ├── components/           # React组件
+│   │   │   ├── ui/              # shadcn/ui组件
+│   │   │   ├── interactive-*.tsx # 交互式图表组件
+│   │   │   └── tag-*.tsx        # 标签管理组件
 │   │   └── lib/                  # 工具库
+│   │       ├── supabase.ts      # Supabase配置
+│   │       └── analysis-*.ts    # 数据分析类型
 │   ├── public/                   # 静态资源
-│   └── supabase-schema.sql       # 数据库结构
-├── agentbench/agentbench-assistant/ # 浏览器插件
-│   ├── popup.tsx               # 主弹窗
-│   ├── background.ts            # 后台脚本
-│   ├── contents.tsx            # 内容脚本
-│   ├── components/ui/           # UI组件
-│   └── lib/                     # 工具库
-├── claude.md                    # 项目规格说明
+│   ├── package.json              # 依赖配置
+│   ├── vercel.json               # Vercel部署配置
+│   └── .env.example              # 环境变量模板
+├── agentbench/
+│   ├── agentbench-assistant/     # 浏览器插件
+│   │   ├── popup.tsx           # 主弹窗
+│   │   ├── background.ts        # 后台脚本
+│   │   ├── contents.tsx         # 内容脚本
+│   │   ├── components/ui/        # UI组件
+│   │   ├── lib/                 # 工具库
+│   │   ├── package.json         # 依赖配置
+│   │   └── build.sh            # 构建脚本
+│   └── websocket-server/        # WebSocket服务器
+│       ├── server.js            # 服务器主文件
+│       ├── package.json         # 依赖配置
+│       └── Dockerfile           # Docker配置
+├── CLAUDE.md                    # 项目规格说明
 ├── DEPLOYMENT.md                # 部署指南
+├── docker-compose.yml           # Docker编排配置
 └── README.md                    # 项目说明
 ```
 

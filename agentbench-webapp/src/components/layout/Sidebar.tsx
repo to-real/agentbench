@@ -8,6 +8,7 @@ const navigation = [
   { name: '测试用例库', href: '/test-cases' },
   { name: '评测执行', href: '/evaluate' },
   { name: '数据分析', href: '/analysis' },
+  { name: '草稿管理', href: '/drafts' },
 ]
 
 export default function Sidebar() {

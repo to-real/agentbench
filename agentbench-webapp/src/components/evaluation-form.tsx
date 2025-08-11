@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { Brain, Loader2, Save } from "lucide-react"
+import { Brain, Loader2, Save, FileText, Download, Wifi, WifiOff, Database, AlertCircle } from "lucide-react"
+import { SyncStatusIndicator } from '@/components/sync-status-indicator'
+import { useAutoSave, useNetworkStatus } from '@/hooks/use-auto-save'
+import { DraftFormData } from '@/types/draft'
 
 interface EvaluationFormData {
   core_delivery_capability: {
@@ -45,75 +48,214 @@ interface EvaluationFormData {
 interface EvaluationFormProps {
   agentName: string
   testCase: { title: string; prompt: string }
+  projectId: string
+  testCaseId: string
+  evaluatorId: string
+  evaluatorName?: string
   initialData?: Partial<EvaluationFormData>
   evidence?: string[]
   onSave: (data: EvaluationFormData) => void
   onAIScore?: (data: EvaluationFormData) => void
+  enableAutoSave?: boolean
 }
 
 export function EvaluationForm({ 
   agentName, 
   testCase, 
+  projectId,
+  testCaseId,
+  evaluatorId,
+  evaluatorName,
   initialData, 
   evidence = [], 
   onSave, 
-  onAIScore 
+  onAIScore,
+  enableAutoSave = true
 }: EvaluationFormProps) {
-  const [formData, setFormData] = useState<EvaluationFormData>({
-    core_delivery_capability: {
-      first_try_success_rate: 3,
-      first_try_completion_rate: 3,
-      first_try_usability: 3,
-      notes: ''
+  const { isOnline } = useNetworkStatus()
+  
+  // 自动保存功能
+  const {
+    formData: draftFormData,
+    syncStatus,
+    isSaving,
+    lastSavedAt,
+    updateField,
+    updateFormData,
+    saveNow
+  } = useAutoSave(initialData, {
+    draftKey: {
+      project_id: projectId,
+      test_case_id: testCaseId,
+      agent_name: agentName,
+      evaluator_id: evaluatorId
     },
-    cognition_planning_capability: {
-      problem_understanding: 3,
-      planning_ability: 3,
-      requirement_clarification: 3,
-      notes: ''
+    enabled: enableAutoSave,
+    delay: 800,
+    onSaveSuccess: () => {
+      console.log('Auto-save completed successfully')
     },
-    interaction_communication_capability: {
-      communication_clarity: 3,
-      feedback_response: 3,
-      notes: ''
-    },
-    efficiency_resourcefulness_capability: {
-      code_efficiency: 3,
-      resource_optimization: 3,
-      notes: ''
-    },
-    engineering_scalability_capability: {
-      code_quality: 3,
-      maintainability: 3,
-      scalability: 3,
-      error_handling: 3,
-      documentation: 3,
-      notes: ''
-    },
-    overall_notes: '',
-    ...initialData
+    onSaveError: (error) => {
+      console.error('Auto-save failed:', error)
+    }
   })
 
   const [isAILoading, setIsAILoading] = useState(false)
+  const [isReportGenerating, setIsReportGenerating] = useState(false)
+  const [generatedReport, setGeneratedReport] = useState<string | null>(null)
+  const [isManualSave, setIsManualSave] = useState(false)
+  const [localFormData, setLocalFormData] = useState<EvaluationFormData | null>(null)
+
+  // 初始化本地表单数据
+  useEffect(() => {
+    if (!enableAutoSave && initialData) {
+      setLocalFormData({
+        core_delivery_capability: {
+          first_try_success_rate: 3,
+          first_try_completion_rate: 3,
+          first_try_usability: 3,
+          notes: ''
+        },
+        cognition_planning_capability: {
+          problem_understanding: 3,
+          planning_ability: 3,
+          requirement_clarification: 3,
+          notes: ''
+        },
+        interaction_communication_capability: {
+          communication_clarity: 3,
+          feedback_response: 3,
+          notes: ''
+        },
+        efficiency_resourcefulness_capability: {
+          code_efficiency: 3,
+          resource_optimization: 3,
+          notes: ''
+        },
+        engineering_scalability_capability: {
+          code_quality: 3,
+          maintainability: 3,
+          scalability: 3,
+          error_handling: 3,
+          documentation: 3,
+          notes: ''
+        },
+        overall_notes: '',
+        ...initialData
+      })
+    }
+  }, [enableAutoSave, initialData])
+
+  // 转换草稿数据为表单数据
+  const formData = enableAutoSave ? convertDraftToFormData(draftFormData) : localFormData || convertDraftToFormData(null)
+
+  // 转换函数
+  function convertDraftToFormData(draftData: DraftFormData | null): EvaluationFormData {
+    if (!draftData) {
+      return {
+        core_delivery_capability: {
+          first_try_success_rate: 3,
+          first_try_completion_rate: 3,
+          first_try_usability: 3,
+          notes: ''
+        },
+        cognition_planning_capability: {
+          problem_understanding: 3,
+          planning_ability: 3,
+          requirement_clarification: 3,
+          notes: ''
+        },
+        interaction_communication_capability: {
+          communication_clarity: 3,
+          feedback_response: 3,
+          notes: ''
+        },
+        efficiency_resourcefulness_capability: {
+          code_efficiency: 3,
+          resource_optimization: 3,
+          notes: ''
+        },
+        engineering_scalability_capability: {
+          code_quality: 3,
+          maintainability: 3,
+          scalability: 3,
+          error_handling: 3,
+          documentation: 3,
+          notes: ''
+        },
+        overall_notes: ''
+      }
+    }
+
+    return {
+      core_delivery_capability: {
+        first_try_success_rate: draftData.core_delivery_capability.first_try_success_rate.value as number,
+        first_try_completion_rate: draftData.core_delivery_capability.first_try_completion_rate.value as number,
+        first_try_usability: draftData.core_delivery_capability.first_try_usability.value as number,
+        notes: draftData.core_delivery_capability.notes.value as string
+      },
+      cognition_planning_capability: {
+        problem_understanding: draftData.cognition_planning_capability.problem_understanding.value as number,
+        planning_ability: draftData.cognition_planning_capability.planning_ability.value as number,
+        requirement_clarification: draftData.cognition_planning_capability.requirement_clarification.value as number,
+        notes: draftData.cognition_planning_capability.notes.value as string
+      },
+      interaction_communication_capability: {
+        communication_clarity: draftData.interaction_communication_capability.communication_clarity.value as number,
+        feedback_response: draftData.interaction_communication_capability.feedback_response.value as number,
+        notes: draftData.interaction_communication_capability.notes.value as string
+      },
+      efficiency_resourcefulness_capability: {
+        code_efficiency: draftData.efficiency_resourcefulness_capability.code_efficiency.value as number,
+        resource_optimization: draftData.efficiency_resourcefulness_capability.resource_optimization.value as number,
+        notes: draftData.efficiency_resourcefulness_capability.notes.value as string
+      },
+      engineering_scalability_capability: {
+        code_quality: draftData.engineering_scalability_capability.code_quality.value as number,
+        maintainability: draftData.engineering_scalability_capability.maintainability.value as number,
+        scalability: draftData.engineering_scalability_capability.scalability.value as number,
+        error_handling: draftData.engineering_scalability_capability.error_handling.value as number,
+        documentation: draftData.engineering_scalability_capability.documentation.value as number,
+        notes: draftData.engineering_scalability_capability.notes.value as string
+      },
+      overall_notes: draftData.overall_notes.value as string
+    }
+  }
 
   const handleSliderChange = (section: keyof EvaluationFormData, field: string, value: number[]) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section as keyof typeof prev] as any,
-        [field]: value[0]
-      }
-    }))
+    if (enableAutoSave) {
+      updateField(section as keyof DraftFormData, field, value[0])
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [section]: {
+          ...prev[section as keyof typeof prev] as any,
+          [field]: value[0]
+        }
+      }))
+    }
   }
 
   const handleNotesChange = (section: keyof EvaluationFormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section as keyof typeof prev] as any,
-        notes: value
-      }
-    }))
+    if (enableAutoSave) {
+      updateField(section as keyof DraftFormData, 'notes', value)
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [section]: {
+          ...prev[section as keyof typeof prev] as any,
+          notes: value
+        }
+      }))
+    }
+  }
+
+  const handleOverallNotesChange = (value: string) => {
+    if (enableAutoSave) {
+      updateField('overall_notes', 'value', value)
+    } else {
+      setFormData(prev => ({ ...prev, overall_notes: value }))
+    }
   }
 
   const handleAIScore = async () => {
@@ -190,6 +332,50 @@ export function EvaluationForm({
     }
   }
 
+  const handleGenerateReport = async () => {
+    setIsReportGenerating(true)
+    try {
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agentName,
+          testCase,
+          scores: formData,
+          evidence
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('报告生成失败')
+      }
+
+      const report = await response.json()
+      setGeneratedReport(report.report)
+    } catch (error) {
+      console.error('报告生成失败:', error)
+      alert('报告生成失败，请稍后重试')
+    } finally {
+      setIsReportGenerating(false)
+    }
+  }
+
+  const downloadReport = () => {
+    if (!generatedReport) return
+
+    const blob = new Blob([generatedReport], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${agentName}-${testCase.title}-评测报告.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const ScoreSlider = ({ 
     label, 
     value, 
@@ -220,8 +406,29 @@ export function EvaluationForm({
     </div>
   )
 
+  // 手动同步处理
+  const handleManualSync = async () => {
+    try {
+      // 这里可以调用草稿管理器的同步方法
+      console.log('Manual sync triggered')
+      // await draftManager.syncNow()
+    } catch (error) {
+      console.error('Manual sync failed:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* 自动保存状态 */}
+      {enableAutoSave && (
+        <SyncStatusIndicator 
+          syncStatus={syncStatus}
+          onSync={handleManualSync}
+          isSyncing={isSaving}
+          showDetails={true}
+        />
+      )}
+
       {/* AI评分按钮 */}
       <Card>
         <CardHeader>
@@ -450,18 +657,105 @@ export function EvaluationForm({
         <CardContent>
           <Textarea
             value={formData.overall_notes}
-            onChange={(e) => setFormData(prev => ({ ...prev, overall_notes: e.target.value }))}
+            onChange={(e) => handleOverallNotesChange(e.target.value)}
             placeholder="请输入综合评语..."
             rows={4}
           />
         </CardContent>
       </Card>
 
+      {/* 报告生成 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            评测报告生成
+          </CardTitle>
+          <CardDescription>
+            基于评测结果生成专业的分析报告
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleGenerateReport} 
+                disabled={isReportGenerating}
+                className="flex items-center gap-2"
+              >
+                {isReportGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    生成评测报告
+                  </>
+                )}
+              </Button>
+              
+              {generatedReport && (
+                <Button 
+                  variant="outline"
+                  onClick={downloadReport}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  下载报告
+                </Button>
+              )}
+            </div>
+            
+            {generatedReport && (
+              <div className="border rounded-lg p-4 bg-gray-50 max-h-64 overflow-y-auto">
+                <h4 className="font-medium mb-2">生成的评测报告：</h4>
+                <pre className="whitespace-pre-wrap text-sm text-gray-700">
+                  {generatedReport}
+                </pre>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 保存按钮 */}
-      <div className="flex justify-end">
-        <Button onClick={() => onSave(formData)} className="flex items-center gap-2">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          {enableAutoSave && (
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                setIsManualSave(true)
+                await saveNow()
+                setIsManualSave(false)
+              }}
+              disabled={isSaving}
+              className="flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  手动保存
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+        
+        <Button 
+          onClick={() => onSave(formData)} 
+          className="flex items-center gap-2"
+          disabled={isSaving && enableAutoSave}
+        >
           <Save className="w-4 h-4" />
-          保存评测结果
+          提交评测结果
         </Button>
       </div>
     </div>

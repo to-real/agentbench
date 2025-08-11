@@ -6,9 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { ProjectData, TestCaseData, EvaluationData, AnalysisData, RadarChartData } from "@/lib/analysis-types"
-import { BarChart3, TrendingUp, Users, FileText, Loader2 } from "lucide-react"
+import { InteractiveRadarChart } from "@/components/interactive-radar-chart"
+import { InteractiveBarChart } from "@/components/interactive-bar-chart"
+import { BarChart3, TrendingUp, Users, FileText, Loader2, Download, Filter } from "lucide-react"
 
 export default function AnalysisPage() {
   const [projects, setProjects] = useState<ProjectData[]>([])
@@ -16,6 +19,9 @@ export default function AnalysisPage() {
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
+  const [selectedTestCase, setSelectedTestCase] = useState<string>('all')
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [chartView, setChartView] = useState<'radar' | 'bar'>('radar')
 
   useEffect(() => {
     fetchProjects()
@@ -26,6 +32,13 @@ export default function AnalysisPage() {
       fetchAnalysisData()
     }
   }, [selectedProject])
+
+  useEffect(() => {
+    if (analysisData) {
+      // 初始化选中的Agent
+      setSelectedAgents(analysisData.agents)
+    }
+  }, [analysisData])
 
   const fetchProjects = async () => {
     try {
@@ -158,94 +171,90 @@ export default function AnalysisPage() {
     }
   }
 
-  const renderRadarChart = () => {
+  // 获取过滤后的数据
+  const getFilteredData = () => {
     if (!analysisData) return null
 
-    const { radarData } = analysisData
-    const dimensions = ['core_delivery', 'cognition_planning', 'interaction_communication', 'efficiency_resourcefulness', 'engineering_scalability']
-    const dimensionNames = ['核心交付', '认知规划', '交互沟通', '效率资源', '工程化']
+    let filteredEvaluations = analysisData.evaluations
+
+    // 按测试用例过滤
+    if (selectedTestCase !== 'all') {
+      filteredEvaluations = filteredEvaluations.filter(e => e.test_case_id === selectedTestCase)
+    }
+
+    // 按Agent过滤
+    if (selectedAgents.length > 0) {
+      filteredEvaluations = filteredEvaluations.filter(e => selectedAgents.includes(e.agent_name))
+    }
+
+    return processData(
+      analysisData.project,
+      analysisData.testCases,
+      filteredEvaluations
+    )
+  }
+
+  // 导出数据
+  const exportData = () => {
+    if (!analysisData) return
+
+    const filteredData = getFilteredData()
+    if (!filteredData) return
+
+    const csvContent = [
+      ['Agent', 'TestCase', 'Core Delivery', 'Cognition Planning', 'Interaction Communication', 'Efficiency Resourcefulness', 'Engineering Scalability', 'Overall Score'],
+      ...filteredData.comparisonData.map(item => [
+        item.agent,
+        item.testCase,
+        item.scores.core_delivery,
+        item.scores.cognition_planning,
+        item.scores.interaction_communication,
+        item.scores.efficiency_resourcefulness,
+        item.scores.engineering_scalability,
+        (
+          item.scores.core_delivery +
+          item.scores.cognition_planning +
+          item.scores.interaction_communication +
+          item.scores.efficiency_resourcefulness +
+          item.scores.engineering_scalability
+        ).toFixed(1)
+      ])
+    ].map(row => row.join(',')).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${analysisData.project.name}_analysis_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const renderRadarChart = () => {
+    const filteredData = getFilteredData()
+    if (!filteredData) return null
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            能力维度雷达图
-          </CardTitle>
-          <CardDescription>
-            各Agent在五大能力维度的平均得分对比
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* 简化的雷达图展示 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {radarData.map((agentData, index) => (
-                <Card key={agentData.agent} className="p-4">
-                  <CardTitle className="text-lg mb-4">{agentData.agent}</CardTitle>
-                  <div className="space-y-3">
-                    {dimensions.map((dim, i) => (
-                      <div key={dim} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{dimensionNames[i]}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${(agentData[dim as keyof typeof agentData] as number) * 20}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium w-8">{agentData[dim as keyof typeof agentData] as number}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ))}
-            </div>
+      <InteractiveRadarChart 
+        data={filteredData.radarData}
+        title="能力维度雷达图"
+        description="各Agent在五大能力维度的平均得分对比"
+      />
+    )
+  }
 
-            {/* 对比表格 */}
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-4">详细对比数据</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Agent</TableHead>
-                    <TableHead>核心交付</TableHead>
-                    <TableHead>认知规划</TableHead>
-                    <TableHead>交互沟通</TableHead>
-                    <TableHead>效率资源</TableHead>
-                    <TableHead>工程化</TableHead>
-                    <TableHead>总分</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {radarData.map((agentData) => {
-                    const totalScore = (
-                      agentData.core_delivery + 
-                      agentData.cognition_planning + 
-                      agentData.interaction_communication + 
-                      agentData.efficiency_resourcefulness + 
-                      agentData.engineering_scalability
-                    ).toFixed(1)
-                    
-                    return (
-                      <TableRow key={agentData.agent}>
-                        <TableCell className="font-medium">{agentData.agent}</TableCell>
-                        <TableCell>{agentData.core_delivery}</TableCell>
-                        <TableCell>{agentData.cognition_planning}</TableCell>
-                        <TableCell>{agentData.interaction_communication}</TableCell>
-                        <TableCell>{agentData.efficiency_resourcefulness}</TableCell>
-                        <TableCell>{agentData.engineering_scalability}</TableCell>
-                        <TableCell className="font-semibold">{totalScore}</TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  const renderBarChart = () => {
+    const filteredData = getFilteredData()
+    if (!filteredData) return null
+
+    return (
+      <InteractiveBarChart 
+        data={filteredData.radarData}
+        title="能力维度柱状图"
+        description="各Agent在五大能力维度的得分对比"
+      />
     )
   }
 
@@ -327,6 +336,8 @@ export default function AnalysisPage() {
     )
   }
 
+  const filteredData = getFilteredData()
+
   return (
     <div className="p-8">
       <div className="mb-6">
@@ -341,31 +352,86 @@ export default function AnalysisPage() {
           <CardDescription>选择要分析的项目以查看详细的评测数据</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="选择一个项目" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            {selectedProject && (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">
-                  {projects.find(p => p.id === selectedProject)?.targets.length || 0} 个Agent
-                </Badge>
-                <Badge variant="outline">
-                  {analysisData?.testCases.length || 0} 个测试用例
-                </Badge>
-                <Badge variant="outline">
-                  {analysisData?.evaluations.length || 0} 条评测记录
-                </Badge>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="选择一个项目" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {selectedProject && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">
+                    {projects.find(p => p.id === selectedProject)?.targets.length || 0} 个Agent
+                  </Badge>
+                  <Badge variant="outline">
+                    {analysisData?.testCases.length || 0} 个测试用例
+                  </Badge>
+                  <Badge variant="outline">
+                    {analysisData?.evaluations.length || 0} 条评测记录
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {/* 过滤器 */}
+            {analysisData && (
+              <div className="flex flex-wrap gap-4 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span className="text-sm font-medium">过滤:</span>
+                </div>
+                
+                <Select value={selectedTestCase} onValueChange={setSelectedTestCase}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="选择测试用例" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">所有测试用例</SelectItem>
+                    {analysisData.testCases.map((testCase) => (
+                      <SelectItem key={testCase.id} value={testCase.id}>
+                        {testCase.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="flex flex-wrap gap-2">
+                  {analysisData.agents.map((agent) => (
+                    <Badge
+                      key={agent}
+                      variant={selectedAgents.includes(agent) ? "default" : "outline"}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        if (selectedAgents.includes(agent)) {
+                          setSelectedAgents(selectedAgents.filter(a => a !== agent))
+                        } else {
+                          setSelectedAgents([...selectedAgents, agent])
+                        }
+                      }}
+                    >
+                      {agent}
+                    </Badge>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportData}
+                  className="flex items-center gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  导出数据
+                </Button>
               </div>
             )}
           </div>
@@ -385,8 +451,25 @@ export default function AnalysisPage() {
       {/* 分析结果 */}
       {analysisData && !loading && (
         <div className="space-y-6">
-          {renderRadarChart()}
-          {renderComparisonView()}
+          <Tabs defaultValue="radar" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="radar">雷达图</TabsTrigger>
+              <TabsTrigger value="bar">柱状图</TabsTrigger>
+              <TabsTrigger value="comparison">详细对比</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="radar" className="space-y-4">
+              {renderRadarChart()}
+            </TabsContent>
+            
+            <TabsContent value="bar" className="space-y-4">
+              {renderBarChart()}
+            </TabsContent>
+            
+            <TabsContent value="comparison" className="space-y-4">
+              {renderComparisonView()}
+            </TabsContent>
+          </Tabs>
         </div>
       )}
 
@@ -398,6 +481,19 @@ export default function AnalysisPage() {
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <div className="text-lg mb-2">开始数据分析</div>
               <div className="text-sm">请先选择一个项目来查看分析结果</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 过滤后无数据 */}
+      {selectedProject && filteredData && filteredData.radarData.length === 0 && (
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-center text-gray-500">
+              <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <div className="text-lg mb-2">无匹配数据</div>
+              <div className="text-sm">请调整过滤条件以查看分析结果</div>
             </div>
           </CardContent>
         </Card>

@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { EvaluationForm } from "@/components/evaluation-form"
 import { supabase } from "@/lib/supabase"
+import { useWebSocket } from "@/hooks/use-websocket"
+import { Wifi, WifiOff, Play, Pause, Square, Users, Activity } from "lucide-react"
 
 interface Project {
   id: string
@@ -27,6 +30,28 @@ export default function EvaluatePage() {
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [selectedTestCase, setSelectedTestCase] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  
+  // WebSocket 连接
+  const {
+    client,
+    state: wsState,
+    isConnected: wsConnected,
+    sessions,
+    activeSession,
+    connect: wsConnect,
+    disconnect: wsDisconnect,
+    createSession,
+    joinSession,
+    leaveSession,
+    startTestSession,
+    stopTestSession,
+    sendTestEvent
+  } = useWebSocket({
+    url: 'ws://localhost:3001',
+    autoConnect: true,
+    enableLogging: true
+  })
 
   useEffect(() => {
     fetchProjects()
@@ -66,19 +91,28 @@ export default function EvaluatePage() {
   const selectedProjectData = projects.find(p => p.id === selectedProject)
   const selectedTestCaseData = testCases.find(t => t.id === selectedTestCase)
 
-  const handleSaveEvaluation = async (evaluationData: any) => {
+  const handleSaveEvaluation = async (evaluationData: any, agentName: string) => {
     if (!selectedProject || !selectedTestCase) {
       alert('请先选择项目和测试用例')
       return
     }
 
     try {
+      // 发送评测完成事件到 WebSocket
+      if (currentSessionId && wsConnected) {
+        sendTestEvent(currentSessionId, 'evaluation_completed', {
+          agentName,
+          evaluationData,
+          timestamp: Date.now()
+        })
+      }
+
       const { error } = await supabase
         .from('evaluations')
         .insert([{
           project_id: selectedProject,
           test_case_id: selectedTestCase,
-          agent_name: 'Current Agent', // 这里可以根据实际需要修改
+          agent_name: agentName,
           evaluator_name: 'AI Assisted Evaluator',
           core_delivery_capability: evaluationData.core_delivery_capability,
           cognition_planning_capability: evaluationData.cognition_planning_capability,
@@ -97,6 +131,54 @@ export default function EvaluatePage() {
     }
   }
 
+  // 创建测试会话
+  const handleCreateSession = async () => {
+    if (!selectedProject || !selectedTestCase) {
+      alert('请先选择项目和测试用例')
+      return
+    }
+
+    try {
+      const sessionId = await createSession(selectedProject, selectedTestCase, 'Multi-Agent')
+      setCurrentSessionId(sessionId)
+      console.log('Session created:', sessionId)
+    } catch (error) {
+      console.error('Failed to create session:', error)
+      alert('创建会话失败')
+    }
+  }
+
+  // 开始测试
+  const handleStartTest = async () => {
+    if (!currentSessionId) {
+      alert('请先创建测试会话')
+      return
+    }
+
+    try {
+      startTestSession(currentSessionId)
+      console.log('Test started:', currentSessionId)
+    } catch (error) {
+      console.error('Failed to start test:', error)
+      alert('开始测试失败')
+    }
+  }
+
+  // 停止测试
+  const handleStopTest = async () => {
+    if (!currentSessionId) {
+      return
+    }
+
+    try {
+      stopTestSession(currentSessionId)
+      console.log('Test stopped:', currentSessionId)
+    } catch (error) {
+      console.error('Failed to stop test:', error)
+      alert('停止测试失败')
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -110,8 +192,33 @@ export default function EvaluatePage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">评测执行</h1>
-        <p className="text-gray-600">选择评测项目和测试用例，开始AI智能评测</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">评测执行</h1>
+            <p className="text-gray-600">选择评测项目和测试用例，开始AI智能评测</p>
+          </div>
+          
+          {/* WebSocket 状态指示器 */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {wsConnected ? (
+                <Wifi className="w-4 h-4 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" />
+              )}
+              <span className="text-sm text-gray-600">
+                {wsConnected ? '实时同步已连接' : '实时同步已断开'}
+              </span>
+            </div>
+            
+            {currentSessionId && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Activity className="w-3 h-3" />
+                会话 {currentSessionId.slice(-8)}
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 选择器 */}
@@ -123,7 +230,7 @@ export default function EvaluatePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">选择项目</label>
               <Select value={selectedProject} onValueChange={setSelectedProject}>
@@ -153,6 +260,34 @@ export default function EvaluatePage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">实时控制</label>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleCreateSession}
+                  disabled={!selectedProject || !selectedTestCase || !!currentSessionId}
+                  size="sm"
+                >
+                  创建会话
+                </Button>
+                <Button 
+                  onClick={handleStartTest}
+                  disabled={!currentSessionId || (activeSession?.status === 'running')}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Play className="w-4 h-4" />
+                </Button>
+                <Button 
+                  onClick={handleStopTest}
+                  disabled={!currentSessionId || activeSession?.status !== 'running'}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Square className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -187,7 +322,10 @@ export default function EvaluatePage() {
                   <EvaluationForm
                     agentName={target}
                     testCase={selectedTestCaseData}
-                    onSave={handleSaveEvaluation}
+                    projectId={selectedProject}
+                    testCaseId={selectedTestCase}
+                    evaluatorId="evaluator-1"
+                    onSave={(data) => handleSaveEvaluation(data, target)}
                   />
                 </TabsContent>
               ))}

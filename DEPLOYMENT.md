@@ -5,7 +5,32 @@
 ✅ **Phase 1 完成**: 环境搭建与数据库设置
 ✅ **Phase 2 完成**: 核心Web应用开发  
 ✅ **Phase 3 完成**: 浏览器插件开发
-🔄 **Phase 4 进行中**: 联调与部署
+✅ **Phase 4 完成**: AI评测功能集成
+✅ **Phase 5 完成**: WebSocket实时通信
+✅ **Phase 6 完成**: 数据可视化优化
+✅ **Phase 7 完成**: 测试用例批量导入
+✅ **Phase 8 完成**: 部署配置和插件打包
+
+## 项目概述
+
+AgentBench 是一个完整的AI Agent评测平台，包含以下组件：
+
+- **Web应用**: Next.js + Supabase + Recharts
+- **浏览器插件**: Plasmo + React + TypeScript
+- **WebSocket服务器**: Node.js + Socket.io
+- **数据库**: Supabase PostgreSQL
+- **AI服务**: OpenAI + 智谱GLM
+
+## 部署架构
+
+```
+AgentBench Platform
+├── Web Application (Next.js + Supabase)
+├── Browser Extension (Plasmo + React)
+├── WebSocket Server (Node.js)
+├── AI Analysis Services
+└── Database (Supabase PostgreSQL)
+```
 
 ## 部署准备
 

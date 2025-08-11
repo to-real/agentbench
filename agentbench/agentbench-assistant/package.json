@@ -1,17 +1,24 @@
 {
   "name": "agentbench-assistant",
   "displayName": "AgentBench Assistant",
-  "version": "0.0.1",
-  "description": "Browser extension for AgentBench - AI Agent evaluation platform",
+  "version": "1.0.0",
+  "description": "AI Agent评测助手 - 截图、录制、数据同步",
   "author": "AgentBench Team",
+  "homepage": "https://github.com/your-org/agentbench",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "package:chrome": "plasmo package --target=chrome-mv3",
+    "package:firefox": "plasmo package --target=firefox-mv2",
+    "build:all": "npm run build && npm run package:chrome && npm run package:firefox",
+    "clean": "rm -rf build dist",
+    "zip": "cd build/chrome-mv3-prod && zip -r ../../agentbench-assistant-chrome.zip ."
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-tabs": "^1.0.4",
     "@supabase/supabase-js": "^2.39.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
@@ -44,7 +51,9 @@
       "storage",
       "tabs",
       "scripting",
-      "webNavigation"
+      "webNavigation",
+      "webRequest",
+      "debugger"
     ]
   }
 }
